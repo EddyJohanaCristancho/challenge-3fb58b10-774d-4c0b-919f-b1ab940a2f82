@@ -1,7 +1,5 @@
 package com.pragma.ordenes.domain.ports;
 
-
-import com.pragma.ordenes.domain.model.EstadoOrden;
 import com.pragma.ordenes.domain.model.Orden;
 import java.util.List;
 import java.util.Optional;

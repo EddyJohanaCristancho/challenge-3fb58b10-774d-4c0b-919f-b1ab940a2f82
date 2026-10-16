@@ -1,11 +1,7 @@
-package com.pragma.ordenes.infrastructure.adapters;
+package com.pragma.ordenes.infrastructure.adapters.order;
 
-
-import com.pragma.ordenes.domain.model.EstadoOrden;
 import com.pragma.ordenes.domain.model.Orden;
 import com.pragma.ordenes.domain.ports.OrdenRepositoryPort;
-import com.pragma.ordenes.infrastructure.persistence.OrdenEntity;
-import com.pragma.ordenes.infrastructure.persistence.OrdenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
@@ -55,7 +51,7 @@ public class OrdenJpaAdapter implements OrdenRepositoryPort {
     public Optional<Orden> buscarPorId(UUID id) {
         log.debug("Buscando orden por ID: {}", id);
         return ordenRepository.findById(id)
-                .map(ordenMapper::toDomain);
+                .map(orden -> ordenMapper.toDomain(orden));
     }
 
     @Override
@@ -94,18 +90,5 @@ public class OrdenJpaAdapter implements OrdenRepositoryPort {
         log.info("Estado de orden actualizado exitosamente");
         
         return ordenMapper.toDomain(savedEntity);
-    }
-
-    public List<Orden> buscarTodas() {
-        log.debug("Buscando todas las órdenes");
-        return ordenRepository.findAll()
-                .stream()
-                .map(ordenMapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    public void eliminar(UUID id) {
-        log.info("Eliminando orden: {}", id);
-        ordenRepository.deleteById(id);
     }
 }

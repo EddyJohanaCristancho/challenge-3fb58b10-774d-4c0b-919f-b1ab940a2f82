@@ -1,9 +1,5 @@
 package com.pragma.ordenes.application.usecases;
 
-
-
-import com.pragma.ordenes.domain.model.ItemOrden;
-import com.pragma.ordenes.domain.model.EstadoOrden;
 import com.pragma.ordenes.domain.model.Orden;
 import com.pragma.ordenes.domain.model.Transaccion;
 import com.pragma.ordenes.domain.ports.InventarioServicePort;
@@ -16,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -50,19 +45,18 @@ public class CrearOrdenUseCase {
      * decremento de stock y registro de transacciones para auditoría.
      *
      * @param orden La orden a crear
-     * @param usuarioResponsable Usuario que realiza la operación
      * @return La orden creada con su ID asignado
      * @throws InventarioServiceException si el inventario no está disponible
      * @throws IllegalArgumentException si la orden no es válida
      */
-    public Orden ejecutar(Orden orden, String usuarioResponsable) {
+    public Orden ejecutar(Orden orden) {
         logger.info("Iniciando proceso de creación de orden para cliente: {}", orden.getClienteId());
 
         validarOrden(orden);
         verificarDisponibilidadInventario(orden);
         Orden ordenGuardada = persistirOrden(orden);
         actualizarInventario(ordenGuardada);
-        registrarTransacciones(ordenGuardada, usuarioResponsable);
+        registrarTransacciones(ordenGuardada);
 
         logger.info("Orden {} creada exitosamente para cliente: {}",
                 ordenGuardada.getId(), ordenGuardada.getClienteId());
@@ -134,10 +128,8 @@ public class CrearOrdenUseCase {
         }
     }
 
-    private void registrarTransacciones(Orden orden, String usuarioResponsable) {
+    private void registrarTransacciones(Orden orden) {
         logger.debug("Registrando transacciones de auditoría para orden: {}", orden.getId());
-
-        String correlationId = UUID.randomUUID().toString();
 
         Transaccion transaccionOrden = Transaccion.crearTransaccion(
                 "CREACION",
@@ -146,10 +138,9 @@ public class CrearOrdenUseCase {
                 String.format("Orden creada para cliente %s con %d items, total: %s",
                         orden.getClienteId(),
                         orden.getItems().size(),
-                        orden.calcularTotal()),
-                usuarioResponsable
+                        orden.calcularTotal())
         );
-        transaccionOrden.setCorrelationId(correlationId);
+
         transaccionRepository.guardar(transaccionOrden);
 
         for (Orden.ItemOrden item : orden.getItems()) {
@@ -159,40 +150,12 @@ public class CrearOrdenUseCase {
                     item.getProductoId(),
                     String.format("Stock decrementado en %d unidades para orden %s",
                             item.getCantidad(),
-                            orden.getId()),
-                    usuarioResponsable
+                            orden.getId())
             );
-            transaccionInventario.setCorrelationId(correlationId);
+
             transaccionRepository.guardar(transaccionInventario);
         }
 
         logger.info("Transacciones de auditoría registradas para orden: {}", orden.getId());
-    }
-
-    /**
-     * Calcula el total de una orden sin persistirla.
-     * Útil para previsualización antes de confirmar la compra.
-     *
-     * @param orden La orden a calcular
-     * @return Total calculado
-     */
-    public BigDecimal calcularTotalPreview(Orden orden) {
-        if (orden == null || orden.getItems() == null) {
-            return BigDecimal.ZERO;
-        }
-        return orden.calcularTotal();
-    }
-
-    /**
-     * Verifica si una orden puede ser cancelada según su estado actual.
-     *
-     * @param ordenId ID de la orden
-     * @return true si la orden puede ser cancelada
-     */
-    public boolean puedeCancelar(UUID ordenId) {
-        return ordenRepository.buscarPorId(ordenId)
-                .map(orden -> orden.getEstado() == Orden.EstadoOrden.PENDIENTE ||
-                        orden.getEstado() == Orden.EstadoOrden.CONFIRMADA)
-                .orElse(false);
     }
 }
